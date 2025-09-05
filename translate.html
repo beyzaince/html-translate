@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>PDF → Türkçe Çeviri (Free Providers + Mini Log + MyMemory Fix)</title>
+<title>PDF → Türkçe Çeviri (Free + Mini Log + Ayarlı Bekleme)</title>
 <style>
   :root { --bg:#0b0c10; --card:#15171c; --ink:#e6e6e6; --muted:#a9b0bb; --acc:#4da3ff; }
   * { box-sizing:border-box }
@@ -90,11 +90,26 @@
           <input id="srcLang" type="text" value="en" placeholder="en, de, fr…">
         </div>
         <div>
-          <label>MyMemory mikro-parça boyutu (~500 sınırı)</label>
+          <label>MyMemory mikro-parça boyutu (≤500)</label>
           <input id="mmMax" type="text" value="430">
         </div>
       </div>
-      <p class="muted">Not: MyMemory 500 karakteri aşan sorguları reddeder ve <code>AUTO</code> kaynak dilini kabul etmez. Kaynak dili <b>en</b> gibi 2 harfli ISO kodla gir.</p>
+      <div class="row">
+        <div>
+          <label>Bekleme (ms, isteğe bağlı)</label>
+          <input id="delayMs" type="text" value="0" placeholder="ör. 3500">
+        </div>
+        <div>
+          <label>Log seviyesi</label>
+          <select id="logLevel">
+            <option value="mini" selected>Mini</option>
+            <option value="verbose">Detaylı</option>
+          </select>
+        </div>
+      </div>
+      <p class="muted">
+        Not: MyMemory 500 karakteri aşan sorguları reddeder ve AUTO kaynak dilini kabul etmez. 429 alırsan <b>Bekleme (ms)</b>’i 3000–4000 yap.
+      </p>
     </details>
 
     <div class="foot">
@@ -119,7 +134,7 @@
     </div>
 
     <p class="muted" style="margin-top:8px">
-      Ücretsiz sağlayıcılar paylaşımlı olduğundan her parça arasında kısa bekleme vardır. Safari’de aç.
+      Ücretsiz sağlayıcılar paylaşımlı olduğundan hız sınırlaması uygulayabilir. Safari’de aç.
     </p>
   </div>
 </div>
@@ -136,10 +151,12 @@ const logEl = $("#log"), bar = $("#bar"), progressText = $("#progressText"),
       chunkText = $("#chunkText"), pill = $("#statusPill"),
       dlBtn = $("#downloadBtn"), previewLink = $("#previewLink");
 
-function log(t){ logEl.textContent += (logEl.textContent? "\n":"") + t; logEl.scrollTop = logEl.scrollHeight; }
+let LOG_LEVEL = "mini";
+function log(t, lvl="mini"){ if (LOG_LEVEL==="verbose" || lvl==="mini") { logEl.textContent += (logEl.textContent? "\n":"") + t; logEl.scrollTop = logEl.scrollHeight; } }
 function setBar(p){ bar.style.width = Math.max(0, Math.min(1,p))*100 + "%"; }
 function setPill(t){ pill.textContent = t; }
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
+async function maybeSleep(ms){ if (ms && ms>0) { await sleep(ms); } }
 
 /* ---------------- PDF okuma ---------------- */
 async function readLocalFileAsArrayBuffer(file){
@@ -173,9 +190,9 @@ async function readPages(pdf, useOCR){
     try{
       const page=await pdf.getPage(i);
       try{ const tc=await page.getTextContent(); text = tc.items.map(it=>it.str).join(" "); }
-      catch(e){ log("⚠️ TextContent alınamadı (sayfa "+i+"): "+e.message); }
+      catch(e){ log("⚠️ TextContent alınamadı (sayfa "+i+"): "+e.message, "verbose"); }
       if((!text || text.trim().length<5) && useOCR){
-        log("🔤 OCR devrede (sayfa "+i+")");
+        log("🔤 OCR devrede (sayfa "+i+")", "verbose");
         const viewport=page.getViewport({scale:2.0});
         const canvas=document.createElement("canvas"); const ctx=canvas.getContext("2d");
         canvas.width=Math.floor(viewport.width); canvas.height=Math.floor(viewport.height);
@@ -210,21 +227,17 @@ function chunkPages(pages, maxChars){
   return chunks;
 }
 
-/* ------------- Yardımcı: metni mikro-parçalara böl ------------- */
-function splitSmart(text, maxLen=430) { // MyMemory sınırı için ~430
+/* ------------- Mikro-parça bölücü ------------- */
+function splitSmart(text, maxLen=430) {
   if (text.length <= maxLen) return [text];
   const parts = [];
   let buf = "";
   const sentences = text.split(/(?<=[\.\!\?\n])\s+/);
   for (const s of sentences) {
-    if ((buf + " " + s).length > maxLen && buf.length) {
-      parts.push(buf); buf = s;
-    } else {
-      buf = buf ? (buf + " " + s) : s;
-    }
+    if ((buf + " " + s).length > maxLen && buf.length) { parts.push(buf); buf = s; }
+    else { buf = buf ? (buf + " " + s) : s; }
   }
   if (buf) parts.push(buf);
-  // Çok uzun tek cümle kaldıysa kaba böl
   const out = [];
   for (const p of parts){
     if (p.length <= maxLen) { out.push(p); continue; }
@@ -234,13 +247,12 @@ function splitSmart(text, maxLen=430) { // MyMemory sınırı için ~430
 }
 
 /* ---------------- Sağlayıcılar ---------------- */
-// LibreTranslate: 400/413/429 ise mikro-parça + minik bekleme; olmazsa MyMemory'e düşer
-async function tr_libre(text, target="tr", endpoint) {
+async function tr_libre(text, target="tr", endpoint, delayMs=0) {
   const base = (endpoint && endpoint.trim()) || "https://libretranslate.com";
   const url  = base.replace(/\/+$/,"") + "/translate";
 
   async function callOnce(t) {
-    log("🌐 LT → uzunluk=" + t.length);
+    log("🌐 LT → uzunluk=" + t.length, "verbose");
     const resp = await fetch(url, {
       method:"POST",
       headers:{ "Content-Type":"application/json", "Accept":"application/json" },
@@ -248,59 +260,54 @@ async function tr_libre(text, target="tr", endpoint) {
     });
     if (!resp.ok) throw new Error("LT " + resp.status);
     const j = await resp.json();
-    log("✅ LT ✓ ("+(j.translatedText||"").slice(0,24)+"…)");
+    log("✅ LT ✓ ("+(j.translatedText||"").slice(0,24)+"…)", "verbose");
     return j.translatedText || "";
   }
 
   try {
-    return await callOnce(text); // tek parça dene
+    return await callOnce(text);
   } catch (e) {
     if (!/LT (400|413|429)/.test(e.message)) throw e;
-    const micro = splitSmart(text, 1800); // LT için daha büyük mikro parça
+    const micro = splitSmart(text, 1800);
     log("↪️ LT hata → mikro parça: "+micro.length);
     let out = "";
     for (let i=0;i<micro.length;i++){
-      log("🔸 mikro "+(i+1)+"/"+micro.length);
-      await sleep(800);
+      log("🔸 LT mikro "+(i+1)+"/"+micro.length, "verbose");
+      await maybeSleep(delayMs);
       out += await callOnce(micro[i]);
     }
     return out;
   }
 }
 
-// MyMemory: AUTO kabul etmez; 500 char sınırı → 430'luk mikro-parçalar
-async function tr_mymemory(text, target="tr", source="en", maxPiece=430){
+async function tr_mymemory(text, target="tr", source="en", maxPiece=430, delayMs=0){
   const micros = splitSmart(text, maxPiece);
   log("🌐 MyMemory → mikro-parça sayısı=" + micros.length + " (src="+source+"|"+target+")");
   let out = "";
   for (let i=0;i<micros.length;i++){
     const q = micros[i];
-    const pair = source.toLowerCase() + "|" + target.toLowerCase(); // en|tr
+    const pair = source.toLowerCase() + "|" + target.toLowerCase();
     const url  = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) + "&langpair=" + encodeURIComponent(pair);
     const resp = await fetch(url);
     if(!resp.ok){ throw new Error("MM HTTP " + resp.status); }
     const j = await resp.json();
-    // API status check
     if (j.responseStatus !== 200 || !j.responseData){
-      log("⚠️ MyMemory status=" + j.responseStatus + " → boş döndü, tekrar dene");
-      // 1 kez daha kısa bekleme ile retry
-      await sleep(600);
-      const r2 = await fetch(url);
-      const j2 = await r2.json();
-      const piece = (j2.responseData && j2.responseData.translatedText) || "";
-      out += piece;
+      log("⚠️ MM status=" + j.responseStatus + " → retry", "verbose");
+      await maybeSleep(Math.max(600, delayMs));
+      const r2 = await fetch(url); const j2 = await r2.json();
+      out += (j2.responseData && j2.responseData.translatedText) || "";
     } else {
       out += j.responseData.translatedText || "";
     }
-    await sleep(500); // nazik davran
+    await maybeSleep(delayMs);
   }
-  log("✅ MyMemory ✓ ("+out.slice(0,24)+"…)");
+  log("✅ MyMemory ✓ ("+out.slice(0,24)+"…)", "verbose");
   return out;
 }
 
-async function tr_deepl(text, target="TR", apiKey){
+async function tr_deepl(text, target="TR", apiKey, delayMs=0){
   if(!apiKey) throw new Error("DeepL key gerekli");
-  log("🌐 DeepL → istek");
+  log("🌐 DeepL → istek", "verbose");
   const form = new URLSearchParams();
   form.append("text", text);
   form.append("target_lang", target.toUpperCase());
@@ -312,21 +319,22 @@ async function tr_deepl(text, target="TR", apiKey){
   const t = await resp.text();
   if(!resp.ok) throw new Error("DL " + resp.status + " | " + t.slice(0,200));
   const j = JSON.parse(t);
-  log("✅ DeepL ✓ ("+(j.translations?.[0]?.text||"").slice(0,24)+"…)");
+  await maybeSleep(delayMs);
+  log("✅ DeepL ✓ ("+(j.translations?.[0]?.text||"").slice(0,24)+"…)", "verbose");
   return j.translations?.[0]?.text || "";
 }
 
-// Sağlayıcı yönlendirici + Libreden otomatik MyMemory fallback
-async function translateChunkProvider(provider, text, lang, key, ltEndpoint, srcLang, mmMax){
+// Yönlendirici + LT→MM fallback
+async function translateChunkProvider(provider, text, lang, key, ltEndpoint, srcLang, mmMax, delayMs){
   try {
-    if (provider==="libre")    return await tr_libre(text, lang, ltEndpoint);
-    if (provider==="mymemory") return await tr_mymemory(text, lang, srcLang, mmMax);
-    if (provider==="deepl")    return await tr_deepl(text, lang, key);
+    if (provider==="libre")    return await tr_libre(text, lang, ltEndpoint, delayMs);
+    if (provider==="mymemory") return await tr_mymemory(text, lang, srcLang, mmMax, delayMs);
+    if (provider==="deepl")    return await tr_deepl(text, lang, key, delayMs);
     throw new Error("Bilinmeyen sağlayıcı");
   } catch (e) {
     if (provider==="libre" && /LT (400|413|429)/.test(e.message)) {
       log("↪️ LT hata → MyMemory'e düşülüyor…");
-      return await tr_mymemory(text, lang, srcLang, mmMax);
+      return await tr_mymemory(text, lang, srcLang, mmMax, delayMs);
     }
     throw e;
   }
@@ -354,6 +362,8 @@ document.getElementById("startBtn").addEventListener("click", async () => {
     const lang      = (document.getElementById("lang").value || "tr").toLowerCase();
     const srcLang   = (document.getElementById("srcLang").value || "en").toLowerCase();
     const mmMax     = Math.max(200, parseInt(document.getElementById("mmMax").value,10) || 430);
+    const delayMs   = Math.max(0, parseInt(document.getElementById("delayMs").value,10) || 0);
+    LOG_LEVEL       = document.getElementById("logLevel").value;
 
     if (!pdfUrl && !file){ alert("PDF URL gir veya yerel bir PDF seç"); return; }
 
@@ -364,7 +374,6 @@ document.getElementById("startBtn").addEventListener("click", async () => {
     const pages = await loadPDF({ url: pdfUrl || null, file, useOCR });
     if (!pages.length) throw new Error("PDF sayfaları okunamadı");
 
-    // Ücretsiz sağlayıcılar için daha küçük chunk öner
     const chunkSize = (provider === "libre" || provider === "mymemory") ? Math.min(userChunk, 4000) : userChunk;
 
     const chunks = chunkPages(pages, chunkSize);
@@ -376,10 +385,10 @@ document.getElementById("startBtn").addEventListener("click", async () => {
       log(`🤖 Çeviri (parça ${i+1}/${chunks.length}) — Sayfa ${ch.start}–${ch.end} | uzunluk=${ch.text.length}`);
       chunkText.textContent = `${i+1}/${chunks.length} parça`;
 
-      const tr = await translateChunkProvider(provider, ch.text, lang, apiKey, ltEndpoint, srcLang, mmMax);
+      const tr = await translateChunkProvider(provider, ch.text, lang, apiKey, ltEndpoint, srcLang, mmMax, delayMs);
       output += `\n\n<!-- PART ${i+1} (Pages ${ch.start}-${ch.end}) -->\n` + tr + "\n";
 
-      await sleep(1000); // paylaşımlı servis nezaketi
+      await maybeSleep(delayMs); // parçalar arası bekleme (opsiyonel)
     }
 
     downloadText("translation_" + Date.now() + ".md", output);
