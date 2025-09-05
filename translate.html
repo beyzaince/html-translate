@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>PDF → Türkçe Çeviri (LibreTranslate – Free)</title>
+<title>PDF → Türkçe Çeviri (Free Providers)</title>
 <style>
   :root { --bg:#0b0c10; --card:#15171c; --ink:#e6e6e6; --muted:#a9b0bb; --acc:#4da3ff; }
   * { box-sizing:border-box }
@@ -109,7 +109,7 @@
 
     <p class="muted" style="margin-top:8px">
       Bu sürüm <b>LibreTranslate</b> ve <b>MyMemory</b> ile ücretsiz çalışır. DeepL kullanacaksan kendi API anahtarını gir.
-      Sayfa yalnızca <b>Safari</b> tarayıcısında çalışır.
+      Safari tarayıcısında aç.
     </p>
   </div>
 </div>
@@ -131,7 +131,7 @@ function setBar(p){ bar.style.width = Math.max(0, Math.min(1,p))*100 + "%"; }
 function setPill(t){ pill.textContent = t; }
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
-// ---------- PDF okuma ----------
+/* ---------------- PDF okuma ---------------- */
 async function readLocalFileAsArrayBuffer(file){
   log("📥 Yerel PDF okunuyor: " + (file.name || "dosya"));
   return new Promise((res,rej)=>{
@@ -195,28 +195,64 @@ function chunkPages(pages, maxChars){
   return chunks;
 }
 
-// ---------- Çeviri sağlayıcıları ----------
-async function tr_libre(text, target="tr", endpoint){
-  const base = (endpoint && endpoint.trim()) || "https://libretranslate.com";
-  const url = base.replace(/\/+$/,"") + "/translate";
-  const resp = await fetch(url, {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ q:text, source:"auto", target:target, format:"text" })
-  });
-  if(!resp.ok){ throw new Error("LibreTranslate error: "+resp.status); }
-  const j = await resp.json();
-  return j.translatedText || "";
+/* ------------- Yardımcı: metni mikro-parçalara böl ------------- */
+function splitSmart(text, maxLen=1800) {
+  const parts = [];
+  let buf = "";
+  const sentences = text.split(/(?<=[\.\!\?\n])\s+/);
+  for (const s of sentences) {
+    if ((buf + " " + s).length > maxLen && buf.length) {
+      parts.push(buf);
+      buf = s;
+    } else {
+      buf = buf ? (buf + " " + s) : s;
+    }
+  }
+  if (buf) parts.push(buf);
+  return parts;
 }
+
+/* ---------------- Sağlayıcılar ---------------- */
+// LibreTranslate: büyük metinlerde 400/413/429 olursa mikro-parçalara böl, gerekirse fallback
+async function tr_libre(text, target="tr", endpoint) {
+  const base = (endpoint && endpoint.trim()) || "https://libretranslate.com";
+  const url  = base.replace(/\/+$/,"") + "/translate";
+
+  async function callOnce(t) {
+    const resp = await fetch(url, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ q:t, source:"auto", target:target, format:"text" })
+    });
+    if (!resp.ok) throw new Error("LT " + resp.status);
+    const j = await resp.json();
+    return j.translatedText || "";
+  }
+
+  try {
+    return await callOnce(text); // tek parça dene
+  } catch (e) {
+    if (!/LT (400|413|429)/.test(e.message)) throw e;
+    const micro = splitSmart(text, 1800);
+    log("↪️ LibreTranslate mikro-parçalara ayrıldı ("+micro.length+")");
+    let out = "";
+    for (let i=0;i<micro.length;i++){
+      await sleep(800);
+      out += await callOnce(micro[i]);
+    }
+    return out;
+  }
+}
+
 async function tr_mymemory(text, target="tr"){
-  // kaynak dil otomatik tahmin iyi çalışmıyorsa 'en|tr' gibi zorlayabilirsin
   const pair = "auto|" + target;
   const url  = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) + "&langpair=" + encodeURIComponent(pair);
   const resp = await fetch(url);
-  if(!resp.ok){ throw new Error("MyMemory error: "+resp.status); }
+  if(!resp.ok) throw new Error("MM " + resp.status);
   const j = await resp.json();
   return (j.responseData && j.responseData.translatedText) || "";
 }
+
 async function tr_deepl(text, target="TR", apiKey){
   if(!apiKey) throw new Error("DeepL key gerekli");
   const form = new URLSearchParams();
@@ -228,20 +264,28 @@ async function tr_deepl(text, target="TR", apiKey){
     body: form.toString()
   });
   const t = await resp.text();
-  if(!resp.ok){ throw new Error("DeepL error: "+resp.status+" | "+t.slice(0,300)); }
+  if(!resp.ok) throw new Error("DL " + resp.status + " | " + t.slice(0,200));
   const j = JSON.parse(t);
-  return (j.translations && j.translations[0] && j.translations[0].text) || "";
+  return j.translations?.[0]?.text || "";
 }
 
-// Yönlendirici
+// Sağlayıcı yönlendirici + Libreden otomatik MyMemory fallback
 async function translateChunkProvider(provider, text, lang, key, ltEndpoint){
-  if(provider==="libre")     return await tr_libre(text, lang, ltEndpoint);
-  if(provider==="mymemory")  return await tr_mymemory(text, lang);
-  if(provider==="deepl")     return await tr_deepl(text, lang, key);
-  throw new Error("Bilinmeyen sağlayıcı");
+  try {
+    if (provider==="libre")    return await tr_libre(text, lang, ltEndpoint);
+    if (provider==="mymemory") return await tr_mymemory(text, lang);
+    if (provider==="deepl")    return await tr_deepl(text, lang, key);
+    throw new Error("Bilinmeyen sağlayıcı");
+  } catch (e) {
+    if (provider==="libre" && /LT (400|413|429)/.test(e.message)) {
+      log("↪️ LibreTranslate hata verdi, MyMemory'e düşülüyor…");
+      return await tr_mymemory(text, lang);
+    }
+    throw e;
+  }
 }
 
-// ---------- İndirme ----------
+/* ---------------- İndirme ---------------- */
 function downloadText(filename, text){
   const blob = new Blob([text], { type:"text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -250,17 +294,17 @@ function downloadText(filename, text){
   dlBtn.onclick = () => { const a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); };
 }
 
-// ---------- Akış ----------
+/* ---------------- Akış ---------------- */
 document.getElementById("startBtn").addEventListener("click", async () => {
   try{
-    const pdfUrl = document.getElementById("pdfUrl").value.trim();
-    const file   = document.getElementById("pdfFile").files[0] || null;
-    const provider = document.getElementById("provider").value;
-    const apiKey = document.getElementById("apiKey").value.trim();
-    const ltEndpoint = document.getElementById("ltEndpoint").value.trim();
-    const chunkSize = Math.max(3000, parseInt(document.getElementById("chunkSize").value,10) || 12000);
-    const useOCR = document.getElementById("useOCR").value === "on";
-    const lang   = (document.getElementById("lang").value || "tr").toLowerCase();
+    const pdfUrl    = document.getElementById("pdfUrl").value.trim();
+    const file      = document.getElementById("pdfFile").files[0] || null;
+    const provider  = document.getElementById("provider").value;
+    const apiKey    = document.getElementById("apiKey").value.trim();
+    const ltEndpoint= document.getElementById("ltEndpoint").value.trim();
+    const userChunk = parseInt(document.getElementById("chunkSize").value,10) || 12000;
+    const useOCR    = document.getElementById("useOCR").value === "on";
+    const lang      = (document.getElementById("lang").value || "tr").toLowerCase();
 
     if (!pdfUrl && !file){ alert("PDF URL gir veya yerel bir PDF seç"); return; }
 
@@ -269,6 +313,9 @@ document.getElementById("startBtn").addEventListener("click", async () => {
 
     const pages = await loadPDF({ url: pdfUrl || null, file, useOCR });
     if (!pages.length) throw new Error("PDF sayfaları okunamadı");
+
+    // Libre/MyMemory için daha küçük chunk öner
+    const chunkSize = (provider === "libre" || provider === "mymemory") ? Math.min(userChunk, 4000) : userChunk;
 
     const chunks = chunkPages(pages, chunkSize);
     chunkText.textContent = `0/${chunks.length} parça`;
@@ -280,11 +327,11 @@ document.getElementById("startBtn").addEventListener("click", async () => {
       log(`🤖 Çeviri (parça ${i+1}/${chunks.length}) — Sayfa ${ch.start}–${ch.end}`);
       chunkText.textContent = `${i+1}/${chunks.length} parça`;
 
-      // sağlayıcıya göre çeviri
+      // sağlayıcıya göre çeviri + otomatik fallback
       const tr = await translateChunkProvider(provider, ch.text, lang, apiKey, ltEndpoint);
       output += `\n\n<!-- PART ${i+1} (Pages ${ch.start}-${ch.end}) -->\n` + tr + "\n";
 
-      // public servisleri yormamak için küçük bekleme
+      // public servisleri yormamak için bekleme
       await sleep(1200);
     }
 
