@@ -3,121 +3,122 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>PDF → Türkçe Çeviri (Mobil v2 – slow mode)</title>
+<title>PDF → Türkçe Çeviri (LibreTranslate – Free)</title>
 <style>
   :root { --bg:#0b0c10; --card:#15171c; --ink:#e6e6e6; --muted:#a9b0bb; --acc:#4da3ff; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family:-apple-system,system-ui,"SF Pro Text",Roboto,Segoe UI,Arial,sans-serif; background:var(--bg); color:var(--ink); }
-  .wrap { max-width:900px; margin:0 auto; padding:18px; }
-  h1 { font-size:1.2rem; font-weight:700; margin:10px 0 14px; }
-  .card { background:var(--card); border:1px solid #1f2330; border-radius:14px; padding:14px; box-shadow:0 10px 30px rgba(0,0,0,.25); }
-  label { font-size:.9rem; color:var(--muted); margin-bottom:6px; display:block; }
-  input[type="text"],input[type="password"],select,input[type="file"]{
-    width:100%; padding:12px 14px; background:#0e1117; color:var(--ink);
-    border:1px solid #222836; border-radius:12px; outline:none; font-size:15px;
-  }
-  .row{display:flex; gap:10px; flex-wrap:wrap;}
-  .row>*{flex:1 1 260px;}
-  .btn{appearance:none; border:0; border-radius:12px; padding:12px 16px; background:var(--acc); color:#00122b; font-weight:700; font-size:15px; cursor:pointer;}
-  .btn:disabled{opacity:.6; cursor:not-allowed;}
-  .muted{color:var(--muted); font-size:.85rem;}
-  .progress{height:10px; background:#1f2432; border-radius:999px; overflow:hidden;}
-  .bar{height:100%; width:0%; background:linear-gradient(90deg,#50e3c2,#4da3ff); transition:width .25s ease;}
-  .log{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:#0e1117; color:#d1d5db; border:1px solid #222836; border-radius:12px; padding:12px; white-space:pre-wrap; max-height:260px; overflow:auto;}
-  .foot{display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-top:10px;}
-  .pill{border:1px solid #2a3042; border-radius:999px; padding:6px 10px; font-size:.8rem; color:var(--muted);}
-  a.dl{color:#50e3c2; text-decoration:none; font-weight:700;}
+  * { box-sizing:border-box }
+  body{ margin:0; font-family:-apple-system,system-ui,"SF Pro Text",Roboto,Segoe UI,Arial,sans-serif; background:var(--bg); color:var(--ink)}
+  .wrap{ max-width:900px; margin:0 auto; padding:18px }
+  h1{ font-size:1.2rem; font-weight:700; margin:10px 0 14px }
+  .card{ background:var(--card); border:1px solid #1f2330; border-radius:14px; padding:14px; box-shadow:0 10px 30px rgba(0,0,0,.25) }
+  label{ font-size:.9rem; color:var(--muted); margin-bottom:6px; display:block }
+  input[type="text"],input[type="password"],select,input[type="file"]{ width:100%; padding:12px 14px; background:#0e1117; color:var(--ink); border:1px solid #222836; border-radius:12px; outline:none; font-size:15px }
+  .row{ display:flex; gap:10px; flex-wrap:wrap }
+  .row>*{ flex:1 1 260px }
+  .btn{ appearance:none; border:0; border-radius:12px; padding:12px 16px; background:var(--acc); color:#00122b; font-weight:700; font-size:15px; cursor:pointer }
+  .btn:disabled{ opacity:.6; cursor:not-allowed }
+  .muted{ color:var(--muted); font-size:.85rem }
+  .progress{ height:10px; background:#1f2432; border-radius:999px; overflow:hidden }
+  .bar{ height:100%; width:0%; background:linear-gradient(90deg,#50e3c2,#4da3ff); transition:width .25s ease }
+  .log{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:#0e1117; color:#d1d5db; border:1px solid #222836; border-radius:12px; padding:12px; white-space:pre-wrap; max-height:260px; overflow:auto }
+  .foot{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-top:10px }
+  .pill{ border:1px solid #2a3042; border-radius:999px; padding:6px 10px; font-size:.8rem; color:var(--muted) }
+  a.dl{ color:#50e3c2; text-decoration:none; font-weight:700 }
+  details{ margin-top:8px }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>PDF → Türkçe Çeviri (Mobil v2 – yavaş mod)</h1>
-    <div class="card">
-      <div class="row">
-        <div>
-          <label>PDF URL (opsiyonel — CORS engellerse aşağıdan dosya seç)</label>
-          <input id="pdfUrl" type="text" placeholder="https://…/file.pdf" autocomplete="url">
-        </div>
+<div class="wrap">
+  <h1>PDF → Türkçe Çeviri (Free)</h1>
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>PDF URL (opsiyonel — CORS engellerse aşağıdan dosya seç)</label>
+        <input id="pdfUrl" type="text" placeholder="https://…/file.pdf" autocomplete="url">
       </div>
-      <div class="row">
-        <div>
-          <label>veya Yerel PDF seç</label>
-          <input id="pdfFile" type="file" accept="application/pdf">
-        </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>veya Yerel PDF seç</label>
+        <input id="pdfFile" type="file" accept="application/pdf">
       </div>
+    </div>
 
+    <div class="row">
+      <div>
+        <label>Sağlayıcı</label>
+        <select id="provider">
+          <option value="libre" selected>LibreTranslate (free, no key)</option>
+          <option value="mymemory">MyMemory (free, no key)</option>
+          <option value="deepl">DeepL Free (key gerekir)</option>
+        </select>
+      </div>
+      <div>
+        <label>API Key (yalnızca DeepL için)</label>
+        <input id="apiKey" type="password" placeholder="DeepL-Auth-Key ...">
+      </div>
+    </div>
+
+    <details>
+      <summary class="muted">Gelişmiş</summary>
       <div class="row">
         <div>
-          <label>OpenAI API Key</label>
-          <input id="apiKey" type="password" placeholder="sk-…">
+          <label>LibreTranslate endpoint (opsiyonel)</label>
+          <input id="ltEndpoint" type="text" placeholder="https://libretranslate.com">
         </div>
         <div>
-          <label>Model</label>
-          <input id="model" type="text" value="gpt-4o-mini">
+          <label>Chunk (karakter)</label>
+          <input id="chunkSize" type="text" value="12000">
         </div>
       </div>
-
       <div class="row">
         <div>
-          <label>Maksimum karakter (parça başına)</label>
-          <input id="chunkSize" type="text" value="15000">
-        </div>
-        <div>
-          <label>OCR Fallback (yavaş olabilir)</label>
+          <label>OCR Fallback</label>
           <select id="useOCR">
             <option value="off" selected>Kapalı</option>
             <option value="on">Açık (Tesseract)</option>
           </select>
         </div>
-      </div>
-
-      <div class="row">
         <div>
-          <label>Çeviri Biçimi (İpucu)</label>
-          <select id="formatStyle">
-            <option value="markdown" selected>Markdown (başlıklar/listeler kalsın)</option>
-            <option value="plain">Düz metin</option>
-          </select>
-        </div>
-        <div>
-          <label>Çeviri Dili</label>
-          <input id="lang" type="text" value="Türkçe">
+          <label>Hedef Dil</label>
+          <input id="lang" type="text" value="tr">
         </div>
       </div>
+    </details>
 
-      <div class="foot">
-        <button id="startBtn" class="btn">Başlat</button>
-        <span class="pill" id="statusPill">Hazır</span>
-      </div>
-
-      <div style="margin:14px 0 8px">
-        <div class="progress"><div id="bar" class="bar"></div></div>
-        <div style="display:flex;gap:10px;justify-content:space-between;margin-top:6px">
-          <span class="muted" id="progressText">0/0 sayfa</span>
-          <span class="muted" id="chunkText">0/0 parça</span>
-        </div>
-      </div>
-
-      <label>Günlük (log)</label>
-      <div class="log" id="log"></div>
-
-      <div class="foot">
-        <button id="downloadBtn" class="btn" disabled>Sonucu indir (.md)</button>
-        <a id="previewLink" class="dl" href="#" download style="display:none">Önizleme / İndir</a>
-      </div>
-
-      <p class="muted" style="margin-top:8px">
-        İpucu: Bu sürüm, 429 hatalarını azaltmak için her API çağrısı arasında <b>2 saniye</b> bekler.
-        Yalnızca <b>Safari</b> tarayıcısında çalışır (Files içindeki “Hızlı Bakış”ta JS engellenir).
-      </p>
+    <div class="foot">
+      <button id="startBtn" class="btn">Başlat</button>
+      <span class="pill" id="statusPill">Hazır</span>
     </div>
-  </div>
 
-  <!-- PDF.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <!-- Tesseract (OCR) -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <div style="margin:14px 0 8px">
+      <div class="progress"><div id="bar" class="bar"></div></div>
+      <div style="display:flex;gap:10px;justify-content:space-between;margin-top:6px">
+        <span class="muted" id="progressText">0/0 sayfa</span>
+        <span class="muted" id="chunkText">0/0 parça</span>
+      </div>
+    </div>
+
+    <label>Günlük (log)</label>
+    <div class="log" id="log"></div>
+
+    <div class="foot">
+      <button id="downloadBtn" class="btn" disabled>Sonucu indir (.md)</button>
+      <a id="previewLink" class="dl" href="#" download style="display:none">Önizleme / İndir</a>
+    </div>
+
+    <p class="muted" style="margin-top:8px">
+      Bu sürüm <b>LibreTranslate</b> ve <b>MyMemory</b> ile ücretsiz çalışır. DeepL kullanacaksan kendi API anahtarını gir.
+      Sayfa yalnızca <b>Safari</b> tarayıcısında çalışır.
+    </p>
+  </div>
+</div>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js" crossorigin="anonymous"></script>
+<!-- Tesseract (OCR) -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <script>
 const $ = s => document.querySelector(s);
@@ -125,21 +126,21 @@ const logEl = $("#log"), bar = $("#bar"), progressText = $("#progressText"),
       chunkText = $("#chunkText"), pill = $("#statusPill"),
       dlBtn = $("#downloadBtn"), previewLink = $("#previewLink");
 
-function log(line){ logEl.textContent += (logEl.textContent ? "\\n" : "") + line; logEl.scrollTop = logEl.scrollHeight; }
-function setBar(p){ bar.style.width = Math.max(0, Math.min(1, p))*100 + "%"; }
+function log(t){ logEl.textContent += (logEl.textContent? "\n":"") + t; logEl.scrollTop = logEl.scrollHeight; }
+function setBar(p){ bar.style.width = Math.max(0, Math.min(1,p))*100 + "%"; }
 function setPill(t){ pill.textContent = t; }
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
+// ---------- PDF okuma ----------
 async function readLocalFileAsArrayBuffer(file){
   log("📥 Yerel PDF okunuyor: " + (file.name || "dosya"));
-  return new Promise((res, rej) => {
+  return new Promise((res,rej)=>{
     const fr = new FileReader();
-    fr.onerror = () => rej(new Error("Dosya okunamadı"));
-    fr.onload = () => res(fr.result);
+    fr.onerror=()=>rej(new Error("Dosya okunamadı"));
+    fr.onload =()=>res(fr.result);
     fr.readAsArrayBuffer(file);
   });
 }
-
 async function loadPDF({ url, file, useOCR=false }){
   try{
     if (file){
@@ -149,110 +150,118 @@ async function loadPDF({ url, file, useOCR=false }){
     } else if (url){
       const pdf = await pdfjsLib.getDocument({ url, withCredentials:false }).promise;
       return await readPages(pdf, useOCR);
-    } else {
-      throw new Error("PDF kaynağı bulunamadı");
-    }
-  }catch(e){ log("❌ PDF yükleme hatası: " + e.message); throw e; }
+    } else { throw new Error("PDF kaynağı bulunamadı"); }
+  }catch(e){ log("❌ PDF yükleme hatası: "+e.message); throw e; }
 }
-
 async function readPages(pdf, useOCR){
   log("📄 PDF açıldı — Toplam sayfa: " + pdf.numPages);
-  const pages = [];
-  for (let i=1; i<=pdf.numPages; i++){
-    let text = "";
+  const pages=[];
+  for(let i=1;i<=pdf.numPages;i++){
+    let text="";
     try{
-      const page = await pdf.getPage(i);
-      try{
-        const tc = await page.getTextContent();
-        text = tc.items.map(it => it.str).join(" ");
-      }catch(e){ log("⚠️ TextContent alınamadı (sayfa " + i + "): " + e.message); }
-      if ((!text || text.trim().length < 5) && useOCR){
-        log("🔤 OCR devrede (sayfa " + i + ")…");
-        const viewport = page.getViewport({ scale: 2.0 });
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        const dataUrl = canvas.toDataURL("image/png");
-        const { data:{ text: ocrText } } = await Tesseract.recognize(dataUrl, "eng", { logger:()=>{} });
+      const page=await pdf.getPage(i);
+      try{ const tc=await page.getTextContent(); text = tc.items.map(it=>it.str).join(" "); }
+      catch(e){ log("⚠️ TextContent alınamadı (sayfa "+i+"): "+e.message); }
+      if((!text || text.trim().length<5) && useOCR){
+        log("🔤 OCR devrede (sayfa "+i+")…");
+        const viewport=page.getViewport({scale:2.0});
+        const canvas=document.createElement("canvas"); const ctx=canvas.getContext("2d");
+        canvas.width=Math.floor(viewport.width); canvas.height=Math.floor(viewport.height);
+        await page.render({canvasContext:ctx,viewport}).promise;
+        const dataUrl=canvas.toDataURL("image/png");
+        const { data:{ text: ocrText } } = await Tesseract.recognize(dataUrl,"eng",{logger:()=>{}});
         text = ocrText || "";
       }
-    }catch(e){ log("⚠️ Sayfa " + i + " okunamadı: " + e.message); }
+    }catch(e){ log("⚠️ Sayfa "+i+" okunamadı: "+e.message); }
     pages.push({ index:i, text:(text||"").trim() });
     setBar(i/pdf.numPages);
     progressText.textContent = i + "/" + pdf.numPages + " sayfa";
   }
   return pages;
 }
-
 function chunkPages(pages, maxChars){
-  const chunks = [];
-  let buffer = "", rangeStart = 1;
-  for (let k=0; k<pages.length; k++){
-    const p = pages[k];
-    const header = `\\n\\n---- [PAGE ${p.index}] ----\\n`;
-    const piece = header + (p.text || "");
-    if (buffer.length + piece.length > maxChars && buffer.length > 0){
-      chunks.push({ text: buffer, start: rangeStart, end: pages[k-1].index });
-      buffer = ""; rangeStart = p.index;
+  const chunks=[]; let buf=""; let rangeStart=1;
+  for(let k=0;k<pages.length;k++){
+    const p=pages[k];
+    const header = `\n\n---- [PAGE ${p.index}] ----\n`;
+    const piece = header + (p.text||"");
+    if(buf.length + piece.length > maxChars && buf.length>0){
+      chunks.push({ text:buf, start:rangeStart, end:pages[k-1].index });
+      buf=""; rangeStart=p.index;
     }
-    buffer += piece;
+    buf += piece;
   }
-  if (buffer.length > 0){
-    chunks.push({ text: buffer, start: rangeStart, end: pages[pages.length-1].index });
-  }
+  if(buf.length>0){ chunks.push({ text:buf, start:rangeStart, end:pages[pages.length-1].index }); }
   return chunks;
 }
 
-async function translateChunk(apiKey, model, content, lang, style, label){
-  const sys = style === "markdown"
-    ? `You are a professional translator. Translate the user's text into ${lang}. Keep markdown structure (headings, lists, quotes, tables) and inline emphasis. Do not summarize. Do not add commentary. Preserve page markers.`
-    : `You are a professional translator. Translate the user's text into ${lang}. Keep line breaks and paragraph structure. Do not summarize. Do not add commentary. Preserve page markers.`;
-
-  const body = {
-    model, temperature: 0.2,
-    messages: [
-      { role: "system", content: sys },
-      { role: "user", content: `SECTION: ${label}\n\n${content}` }
-    ]
-  };
-
-  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type":"application/json", "Authorization":"Bearer " + apiKey },
-    body: JSON.stringify(body)
+// ---------- Çeviri sağlayıcıları ----------
+async function tr_libre(text, target="tr", endpoint){
+  const base = (endpoint && endpoint.trim()) || "https://libretranslate.com";
+  const url = base.replace(/\/+$/,"") + "/translate";
+  const resp = await fetch(url, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ q:text, source:"auto", target:target, format:"text" })
   });
-
-  const text = await resp.text().catch(()=> "");
-  if (!resp.ok){
-    log("❌ OpenAI API hata: " + resp.status + " | " + text.slice(0,500));
-    throw new Error("OpenAI API başarısız (" + resp.status + ")");
-  }
-  let json = {}; try{ json = JSON.parse(text); }catch(e){ log("⚠️ JSON parse hatası: " + e.message); }
-  return json.choices?.[0]?.message?.content ?? "";
+  if(!resp.ok){ throw new Error("LibreTranslate error: "+resp.status); }
+  const j = await resp.json();
+  return j.translatedText || "";
+}
+async function tr_mymemory(text, target="tr"){
+  // kaynak dil otomatik tahmin iyi çalışmıyorsa 'en|tr' gibi zorlayabilirsin
+  const pair = "auto|" + target;
+  const url  = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) + "&langpair=" + encodeURIComponent(pair);
+  const resp = await fetch(url);
+  if(!resp.ok){ throw new Error("MyMemory error: "+resp.status); }
+  const j = await resp.json();
+  return (j.responseData && j.responseData.translatedText) || "";
+}
+async function tr_deepl(text, target="TR", apiKey){
+  if(!apiKey) throw new Error("DeepL key gerekli");
+  const form = new URLSearchParams();
+  form.append("text", text);
+  form.append("target_lang", target.toUpperCase());
+  const resp = await fetch("https://api-free.deepl.com/v2/translate",{
+    method:"POST",
+    headers:{ "Authorization":"DeepL-Auth-Key "+apiKey, "Content-Type":"application/x-www-form-urlencoded" },
+    body: form.toString()
+  });
+  const t = await resp.text();
+  if(!resp.ok){ throw new Error("DeepL error: "+resp.status+" | "+t.slice(0,300)); }
+  const j = JSON.parse(t);
+  return (j.translations && j.translations[0] && j.translations[0].text) || "";
 }
 
+// Yönlendirici
+async function translateChunkProvider(provider, text, lang, key, ltEndpoint){
+  if(provider==="libre")     return await tr_libre(text, lang, ltEndpoint);
+  if(provider==="mymemory")  return await tr_mymemory(text, lang);
+  if(provider==="deepl")     return await tr_deepl(text, lang, key);
+  throw new Error("Bilinmeyen sağlayıcı");
+}
+
+// ---------- İndirme ----------
 function downloadText(filename, text){
   const blob = new Blob([text], { type:"text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   previewLink.href = url; previewLink.download = filename; previewLink.style.display = "inline-block";
   dlBtn.disabled = false;
-  dlBtn.onclick = () => { const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); };
+  dlBtn.onclick = () => { const a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); };
 }
 
+// ---------- Akış ----------
 document.getElementById("startBtn").addEventListener("click", async () => {
   try{
     const pdfUrl = document.getElementById("pdfUrl").value.trim();
     const file   = document.getElementById("pdfFile").files[0] || null;
+    const provider = document.getElementById("provider").value;
     const apiKey = document.getElementById("apiKey").value.trim();
-    const model  = document.getElementById("model").value.trim() || "gpt-4o-mini";
-    const chunkSize = Math.max(3000, parseInt(document.getElementById("chunkSize").value,10) || 15000);
+    const ltEndpoint = document.getElementById("ltEndpoint").value.trim();
+    const chunkSize = Math.max(3000, parseInt(document.getElementById("chunkSize").value,10) || 12000);
     const useOCR = document.getElementById("useOCR").value === "on";
-    const style  = document.getElementById("formatStyle").value;
-    const lang   = document.getElementById("lang").value || "Türkçe";
+    const lang   = (document.getElementById("lang").value || "tr").toLowerCase();
 
-    if (!apiKey){ alert("OpenAI API key gerekli"); return; }
     if (!pdfUrl && !file){ alert("PDF URL gir veya yerel bir PDF seç"); return; }
 
     logEl.textContent = ""; previewLink.style.display = "none"; dlBtn.disabled = true;
@@ -265,26 +274,23 @@ document.getElementById("startBtn").addEventListener("click", async () => {
     chunkText.textContent = `0/${chunks.length} parça`;
     log("🧩 Parça sayısı: " + chunks.length);
 
-    let output = `# Çeviri — ${pdfUrl || (file?.name || "local.pdf")}\n\n> Not: Bu çıktı otomatik üretildi. Başlıklar ve sayfa imleri korunmaya çalışılmıştır.\n\n`;
+    let output = `# Çeviri — ${pdfUrl || (file?.name || "local.pdf")}\n\n> Not: Otomatik çeviri. Başlıklar/sayfalar korunmaya çalışıldı.\n\n`;
     for (let i=0; i<chunks.length; i++){
       const ch = chunks[i];
       log(`🤖 Çeviri (parça ${i+1}/${chunks.length}) — Sayfa ${ch.start}–${ch.end}`);
       chunkText.textContent = `${i+1}/${chunks.length} parça`;
 
-      // API çağrısı
-      const tr = await translateChunk(apiKey, model, ch.text, lang, style, `Pages ${ch.start}-${ch.end}`);
+      // sağlayıcıya göre çeviri
+      const tr = await translateChunkProvider(provider, ch.text, lang, apiKey, ltEndpoint);
       output += `\n\n<!-- PART ${i+1} (Pages ${ch.start}-${ch.end}) -->\n` + tr + "\n";
 
-      // 429’u azaltmak için bekleme
-      if (i < chunks.length - 1){
-        log("⏳ Bir sonraki parça öncesi bekleniyor (2s) …");
-        await sleep(2000);
-      }
+      // public servisleri yormamak için küçük bekleme
+      await sleep(1200);
     }
 
     downloadText("translation_" + Date.now() + ".md", output);
     setPill("Tamamlandı ✅");
-    log("✅ İşlem tamamlandı — İndir butonunu kullanabilirsin");
+    log("✅ İşlem tamamlandı — İndir’e tıkla");
   }catch(e){
     console.error(e);
     log("❌ Hata: " + (e.message || e.toString()));
